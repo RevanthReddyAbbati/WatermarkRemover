@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Watermark & Logo Remover Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            overscroll-behavior-y: none;
+        }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+        }
+
+        /* The workspace disables touch actions like scrolling so the user can draw the box on mobile */
+        #workspace {
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .custom-file-upload {
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        
+        .custom-file-upload:hover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+
+        /* Fixed Footer styling */
+        footer {
+            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col text-slate-800">
+
+    <header class="bg-white shadow-sm py-4 px-6 z-10 relative">
+        <div class="max-w-5xl mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                <i class="fa-solid fa-eraser text-blue-500"></i> Watermark & Logo Remover
+            </h1>
+        </div>
+    </header>
+
+    <main class="flex-grow flex flex-col items-center p-4 md:p-8 w-full max-w-5xl mx-auto mb-16">
+        
+        <div id="uploadSection" class="w-full max-w-2xl mt-10">
+            <label class="custom-file-upload flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-slate-300 rounded-xl bg-white">
+                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                    <i class="fa-solid fa-cloud-arrow-up text-5xl text-slate-400 mb-4"></i>
+                    <p class="mb-2 text-sm text-slate-500"><span class="font-semibold text-blue-600">Click to upload</span> or drag and drop</p>
+                    <p class="text-xs text-slate-400">PNG, JPG, JPEG (High Quality Preserved)</p>
+                </div>
+                <input id="imageInput" type="file" class="hidden" accept="image/*" />
+            </label>
+        </div>
+
+        <div id="editorSection" class="w-full hidden flex flex-col items-center gap-6">
+            
+            <div class="glass-panel w-full rounded-xl p-4 flex flex-wrap justify-between items-center gap-4">
+                <div class="text-sm text-slate-600 font-medium">
+                    <i class="fa-solid fa-hand-pointer mr-1"></i> Draw a box over the watermark or logo to remove it.
+                </div>
+                <div class="flex gap-3 w-full sm:w-auto">
+                    <button id="btnReset" class="flex-1 sm:flex-none px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium transition-colors text-sm">
+                        <i class="fa-solid fa-rotate-left mr-1"></i> Reset
+                    </button>
+                    <button id="btnRemove" class="flex-1 sm:flex-none px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Remove
+                    </button>
+                    <button id="btnDownload" class="flex-1 sm:flex-none px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors shadow-sm text-sm">
+                        <i class="fa-solid fa-download mr-1"></i> Download
+                    </button>
+                </div>
+            </div>
+
+            <div class="relative bg-white p-2 rounded-xl shadow-sm border border-slate-200 overflow-hidden max-w-full flex justify-center">
+                <div id="workspace" class="relative inline-block cursor-crosshair">
+                    <img id="displayImage" class="max-w-full max-h-[60vh] object-contain block pointer-events-none rounded" alt="Workspace Image" />
+                    <div id="selectionBox" class="absolute hidden border-2 border-blue-500 bg-blue-500 bg-opacity-20 pointer-events-none"></div>
+                </div>
+            </div>
+            
+            <canvas id="processingCanvas" class="hidden"></canvas>
+        </div>
+    </main>
+
+    <footer class="fixed bottom-0 w-full bg-slate-900 text-slate-300 py-3 px-4 text-center z-50">
+        <p class="text-sm font-medium tracking-wide">
+            Developed by <span class="text-white font-semibold">Revanth Reddy Abbati</span>
+        </p>
+    </footer>
+
+    <script>
+        // DOM Elements
+        const imageInput = document.getElementById('imageInput');
+        const uploadSection = document.getElementById('uploadSection');
+        const editorSection = document.getElementById('editorSection');
+        const displayImage = document.getElementById('displayImage');
+        const workspace = document.getElementById('workspace');
+        const selectionBox = document.getElementById('selectionBox');
+        const processingCanvas = document.getElementById('processingCanvas');
+        const ctx = processingCanvas.getContext('2d', { willReadFrequently: true });
+        
+        const btnReset = document.getElementById('btnReset');
+        const btnRemove = document.getElementById('btnRemove');
+        const btnDownload = document.getElementById('btnDownload');
+
+        // State Variables
+        let originalImageObj = new Image();
+        let currentImageObj = new Image();
+        let isDrawing = false;
+        let startX, startY;
+        let currentRect = null; // {x, y, w, h} in display coordinates
+
+        // Load Image Handler
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const imgUrl = event.target.result;
+                
+                originalImageObj.onload = () => {
+                    // Set up canvas with ORIGINAL full resolution
+                    processingCanvas.width = originalImageObj.naturalWidth;
+                    processingCanvas.height = originalImageObj.naturalHeight;
+                    ctx.drawImage(originalImageObj, 0, 0);
+                    
+                    // Display image
+                    displayImage.src = imgUrl;
+                    
+                    // Switch UI
+                    uploadSection.classList.add('hidden');
+                    editorSection.classList.remove('hidden');
+                    editorSection.classList.add('flex');
+                    
+                    resetSelection();
+                };
+                originalImageObj.src = imgUrl;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Reset App State
+        btnReset.addEventListener('click', () => {
+            ctx.clearRect(0, 0, processingCanvas.width, processingCanvas.height);
+            ctx.drawImage(originalImageObj, 0, 0);
+            updateDisplayFromCanvas();
+            resetSelection();
+        });
+
+        // Event Normalization for Mouse/Touch
+        function getEventPos(e) {
+            const rect = workspace.getBoundingClientRect();
+            let clientX, clientY;
+
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        // Drawing Logic
+        function startDrawing(e) {
+            e.preventDefault();
+            isDrawing = true;
+            const pos = getEventPos(e);
+            startX = pos.x;
+            startY = pos.y;
+            
+            selectionBox.style.left = startX + 'px';
+            selectionBox.style.top = startY + 'px';
+            selectionBox.style.width = '0px';
+            selectionBox.style.height = '0px';
+            selectionBox.classList.remove('hidden');
+            currentRect = null;
+            btnRemove.disabled = true;
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            e.preventDefault();
+            const pos = getEventPos(e);
+            
+            const currentX = pos.x;
+            const currentY = pos.y;
+
+            const width = Math.abs(currentX - startX);
+            const height = Math.abs(currentY - startY);
+            const left = Math.min(startX, currentX);
+            const top = Math.min(startY, currentY);
+
+            // Keep within bounds
+            const maxW = displayImage.clientWidth - left;
+            const maxH = displayImage.clientHeight - top;
+
+            selectionBox.style.width = Math.min(width, maxW) + 'px';
+            selectionBox.style.height = Math.min(height, maxH) + 'px';
+            selectionBox.style.left = Math.max(0, left) + 'px';
+            selectionBox.style.top = Math.max(0, top) + 'px';
+        }
+
+        function stopDrawing(e) {
+            if (!isDrawing) return;
+            e.preventDefault();
+            isDrawing = false;
+
+            const w = parseInt(selectionBox.style.width || '0');
+            const h = parseInt(selectionBox.style.height || '0');
+
+            if (w > 5 && h > 5) {
+                currentRect = {
+                    x: parseInt(selectionBox.style.left),
+                    y: parseInt(selectionBox.style.top),
+                    w: w,
+                    h: h
+                };
+                btnRemove.disabled = false;
+            } else {
+                resetSelection();
+            }
+        }
+
+        workspace.addEventListener('mousedown', startDrawing);
+        workspace.addEventListener('mousemove', draw);
+        window.addEventListener('mouseup', stopDrawing);
+
+        workspace.addEventListener('touchstart', startDrawing, {passive: false});
+        workspace.addEventListener('touchmove', draw, {passive: false});
+        window.addEventListener('touchend', stopDrawing);
+
+        function resetSelection() {
+            selectionBox.classList.add('hidden');
+            currentRect = null;
+            btnRemove.disabled = true;
+        }
+
+        // Advanced Logic: Edge Interpolation Algorithm
+        btnRemove.addEventListener('click', () => {
+            if (!currentRect) return;
+
+            // 1. Calculate scale factor between display and actual high-res canvas
+            const scaleX = processingCanvas.width / displayImage.clientWidth;
+            const scaleY = processingCanvas.height / displayImage.clientHeight;
+
+            // 2. Map display coordinates to real high-res coordinates
+            const realX = Math.floor(currentRect.x * scaleX);
+            const realY = Math.floor(currentRect.y * scaleY);
+            const realW = Math.floor(currentRect.w * scaleX);
+            const realH = Math.floor(currentRect.h * scaleY);
+
+            // Extract a box slightly larger to get the edge pixels
+            const pad = 2; 
+            const sx = Math.max(0, realX - pad);
+            const sy = Math.max(0, realY - pad);
+            const sw = Math.min(processingCanvas.width - sx, realW + pad * 2);
+            const sh = Math.min(processingCanvas.height - sy, realH + pad * 2);
+
+            const imageData = ctx.getImageData(sx, sy, sw, sh);
+            const data = imageData.data;
+
+            // Helper to get pixel index
+            const getIdx = (x, y) => (y * sw + x) * 4;
+
+            // Interpolate colors from the edges towards the center
+            for (let y = pad; y < sh - pad; y++) {
+                for (let x = pad; x < sw - pad; x++) {
+                    
+                    // Distances to borders
+                    const distLeft = x;
+                    const distRight = sw - 1 - x;
+                    const distTop = y;
+                    const distBottom = sh - 1 - y;
+
+                    // Inverse distance weights
+                    const wLeft = 1 / Math.max(1, distLeft);
+                    const wRight = 1 / Math.max(1, distRight);
+                    const wTop = 1 / Math.max(1, distTop);
+                    const wBottom = 1 / Math.max(1, distBottom);
+                    const totalWeight = wLeft + wRight + wTop + wBottom;
+
+                    // Edge indices
+                    const idxLeft = getIdx(0, y);
+                    const idxRight = getIdx(sw - 1, y);
+                    const idxTop = getIdx(x, 0);
+                    const idxBottom = getIdx(x, sh - 1);
+                    const currentIdx = getIdx(x, y);
+
+                    // Blend R, G, B channels
+                    for (let c = 0; c < 3; c++) {
+                        const val = (
+                            data[idxLeft + c] * wLeft +
+                            data[idxRight + c] * wRight +
+                            data[idxTop + c] * wTop +
+                            data[idxBottom + c] * wBottom
+                        ) / totalWeight;
+                        
+                        // Add slight noise to prevent banding and match photo grain
+                        const noise = (Math.random() - 0.5) * 8; 
+                        
+                        data[currentIdx + c] = Math.min(255, Math.max(0, val + noise));
+                    }
+                    // Keep Alpha fully opaque
+                    data[currentIdx + 3] = 255;
+                }
+            }
+
+            // Put patched data back on the high-res canvas
+            ctx.putImageData(imageData, sx, sy);
+            
+            // Update the visual image while keeping the high-res data stored
+            updateDisplayFromCanvas();
+            resetSelection();
+        });
+
+        function updateDisplayFromCanvas() {
+            // Converts high-res canvas back to image src for display
+            displayImage.src = processingCanvas.toDataURL('image/png');
+        }
+
+        // Download High-Quality Output
+        btnDownload.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'cleaned_image_pro.png'; // Updated filename
+            link.href = processingCanvas.toDataURL('image/png', 1.0); // 1.0 ensures max quality
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+    </script>
+</body>
+</html>
