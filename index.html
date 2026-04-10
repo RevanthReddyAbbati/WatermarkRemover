@@ -37,13 +37,11 @@
             display: inline-block;
         }
 
-        /* Cursor changes based on tool */
         .brush-cursor {
             cursor: crosshair;
         }
 
         .custom-file-upload {
-            cursor: pointer;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             background: rgba(15, 23, 42, 0.6);
         }
@@ -55,7 +53,6 @@
             box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.15);
         }
 
-        /* Gradient Button */
         .btn-gradient {
             background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
             background-size: 200% auto;
@@ -66,7 +63,6 @@
             box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
         }
 
-        /* Custom Slider */
         input[type=range] {
             -webkit-appearance: none;
             width: 100%;
@@ -96,7 +92,6 @@
             border-top: 1px solid rgba(255, 255, 255, 0.05);
         }
         
-        /* Loading Overlay */
         #loader {
             display: none;
             position: absolute;
@@ -122,20 +117,20 @@
 
     <main class="flex-grow flex flex-col items-center p-4 md:p-6 w-full max-w-6xl mx-auto mb-16">
         
-        <div id="uploadSection" class="w-full max-w-3xl mt-16">
-            <label class="custom-file-upload flex flex-col items-center justify-center w-full h-80 border-2 border-dashed border-slate-600 rounded-2xl">
-                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+        <div id="uploadSection" class="w-full max-w-3xl mt-16 flex flex-col">
+            <div id="dropZone" class="relative custom-file-upload flex flex-col items-center justify-center w-full h-80 border-2 border-dashed border-slate-600 rounded-2xl overflow-hidden">
+                <div class="flex flex-col items-center justify-center pt-5 pb-6 pointer-events-none">
                     <div class="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mb-4 border border-slate-700 shadow-lg">
                         <i class="fa-solid fa-image text-3xl text-indigo-400"></i>
                     </div>
                     <p class="mb-2 text-lg text-slate-300"><span class="font-semibold text-purple-400">Click to upload</span> or drag and drop</p>
                     <p class="text-sm text-slate-500 mt-2 bg-slate-800/50 py-1 px-3 rounded-full">High-Resolution Quality Preserved</p>
                 </div>
-                <input id="imageInput" type="file" class="hidden" accept="image/*" />
-            </label>
+                <input id="imageInput" type="file" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*" title="Upload Image" />
+            </div>
         </div>
 
-        <div id="editorSection" class="w-full hidden flex flex-col gap-6 w-full">
+        <div id="editorSection" class="hidden flex-col gap-6 w-full">
             
             <div class="glass-panel w-full rounded-2xl p-4 flex flex-col lg:flex-row justify-between items-center gap-4 shadow-xl">
                 
@@ -190,6 +185,7 @@
     <script>
         // DOM Elements
         const imageInput = document.getElementById('imageInput');
+        const dropZone = document.getElementById('dropZone');
         const uploadSection = document.getElementById('uploadSection');
         const editorSection = document.getElementById('editorSection');
         const displayImage = document.getElementById('displayImage');
@@ -214,7 +210,7 @@
         let isDrawing = false;
         let hasSelection = false;
         let brushSize = parseInt(brushSizeInput.value);
-        let historyStack = []; // Array of ImageData to support Undo
+        let historyStack = [];
 
         // Brush Settings
         brushSizeInput.addEventListener('input', (e) => {
@@ -222,7 +218,6 @@
             brushSizeLabel.innerText = brushSize;
         });
 
-        // Setup Window Resize to keep drawing canvas aligned
         window.addEventListener('resize', resizeDrawingCanvas);
 
         function resizeDrawingCanvas() {
@@ -235,42 +230,60 @@
             clearSelection();
         }
 
-        // Image Upload Logic
-        imageInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
+        // --- File Upload & Drag-Drop Logic ---
+        function handleFile(file) {
+            if (!file || !file.type.startsWith('image/')) return;
 
             const reader = new FileReader();
             reader.onload = (event) => {
                 originalImageObj.onload = () => {
-                    // Initialize High-Res Processing Canvas
                     processingCanvas.width = originalImageObj.naturalWidth;
                     processingCanvas.height = originalImageObj.naturalHeight;
                     processCtx.drawImage(originalImageObj, 0, 0);
                     
-                    // Display Image
                     displayImage.src = event.target.result;
                     
-                    // Reset State
                     historyStack = [];
                     updateUndoButton();
                     
-                    // Reveal Editor
                     uploadSection.classList.add('hidden');
+                    uploadSection.classList.remove('flex');
                     editorSection.classList.remove('hidden');
+                    editorSection.classList.add('flex');
                     
-                    // Wait a tiny bit for UI layout to settle before sizing canvas
                     setTimeout(resizeDrawingCanvas, 50);
                 };
                 originalImageObj.src = event.target.result;
             };
             reader.readAsDataURL(file);
+        }
+
+        imageInput.addEventListener('change', (e) => {
+            handleFile(e.target.files[0]);
+            // Reset input so same file can be selected again if needed
+            e.target.value = ''; 
         });
 
-        // ----------------------------------------------------
-        // FREEHAND DRAWING LOGIC (Pointer Events for Touch + Mouse)
-        // ----------------------------------------------------
-        
+        // Drag and Drop Events
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-indigo-500');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-indigo-500');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-indigo-500');
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        // --- Drawing Logic ---
         function getPointerPos(e) {
             const rect = drawingCanvas.getBoundingClientRect();
             return {
@@ -288,11 +301,8 @@
             drawCtx.lineWidth = brushSize;
             drawCtx.beginPath();
             drawCtx.moveTo(pos.x, pos.y);
-            // Draw a single dot if user just clicks
-            drawCtx.lineTo(pos.x, pos.y);
+            drawCtx.lineTo(pos.x, pos.y); // Draw dot on click
             drawCtx.stroke();
-            
-            // Prevent scrolling on mobile while drawing
             e.preventDefault(); 
         });
 
@@ -314,10 +324,7 @@
         drawingCanvas.addEventListener('pointerup', stopDrawing);
         drawingCanvas.addEventListener('pointerout', stopDrawing);
 
-        // ----------------------------------------------------
-        // BUTTON ACTIONS
-        // ----------------------------------------------------
-
+        // --- Button Actions ---
         function clearSelection() {
             drawCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
             hasSelection = false;
@@ -327,10 +334,8 @@
         btnClearSelection.addEventListener('click', clearSelection);
 
         function saveStateToHistory() {
-            // Save current high-res state
             const currentData = processCtx.getImageData(0, 0, processingCanvas.width, processingCanvas.height);
             historyStack.push(currentData);
-            // Limit history to 10 to save memory
             if (historyStack.length > 10) historyStack.shift();
             updateUndoButton();
         }
@@ -348,17 +353,10 @@
             clearSelection();
         });
 
-        // ----------------------------------------------------
-        // ADVANCED FREEHAND INPAINTING ALGORITHM
-        // ----------------------------------------------------
-        
+        // --- Inpainting Logic ---
         btnRemove.addEventListener('click', () => {
             if (!hasSelection) return;
-            
-            // Show loader
             loader.style.display = 'flex';
-            
-            // Small timeout to allow UI to render loader before heavy JS freezes main thread
             setTimeout(() => {
                 executeRemoval();
                 loader.style.display = 'none';
@@ -373,10 +371,6 @@
             const dispW = drawingCanvas.width;
             const dispH = drawingCanvas.height;
 
-            const scaleX = imgW / dispW;
-            const scaleY = imgH / dispH;
-
-            // 1. Create an offscreen canvas to scale the mask up to high-res
             const maskCanvas = document.createElement('canvas');
             maskCanvas.width = imgW;
             maskCanvas.height = imgH;
@@ -386,16 +380,13 @@
             const maskImageData = mCtx.getImageData(0, 0, imgW, imgH);
             const maskData = maskImageData.data;
 
-            // 2. Get high-res image data
             const imgData = processCtx.getImageData(0, 0, imgW, imgH);
             const pixels = imgData.data;
 
-            // 3. Find bounding box of the mask to optimize processing loop
             let minX = imgW, minY = imgH, maxX = 0, maxY = 0;
             for (let y = 0; y < imgH; y++) {
                 for (let x = 0; x < imgW; x++) {
-                    const alphaIdx = (y * imgW + x) * 4 + 3;
-                    if (maskData[alphaIdx] > 0) { // If pixel is masked
+                    if (maskData[(y * imgW + x) * 4 + 3] > 0) {
                         if (x < minX) minX = x;
                         if (x > maxX) maxX = x;
                         if (y < minY) minY = y;
@@ -404,24 +395,17 @@
                 }
             }
 
-            // If no valid mask found, abort
             if (minX > maxX) {
                 clearSelection();
                 return;
             }
 
-            // Add slight padding to bounding box
             const pad = 2;
             minX = Math.max(0, minX - pad);
             minY = Math.max(0, minY - pad);
             maxX = Math.min(imgW - 1, maxX + pad);
             maxY = Math.min(imgH - 1, maxY + pad);
 
-            // 4. Freehand Inpainting Algorithm (Raycast Interpolation)
-            // For every masked pixel, shoot rays in 4 directions to find nearest unmasked pixels.
-            // Blend their colors based on distance.
-            
-            // We use a copy of the original pixels to read from, so we don't bleed newly calculated pixels into each other prematurely.
             const originalPixels = new Uint8ClampedArray(pixels);
             const getIdx = (x, y) => (y * imgW + x) * 4;
 
@@ -429,28 +413,43 @@
                 for (let x = minX; x <= maxX; x++) {
                     const idx = getIdx(x, y);
                     
-                    // If part of the mask (alpha > 0 in mask data)
                     if (maskData[idx + 3] > 0) {
-                        
-                        // Find nearest unmasked pixels in 4 directions
                         let distL = 1, distR = 1, distU = 1, distD = 1;
                         let colorL = null, colorR = null, colorU = null, colorD = null;
 
-                        // Left
                         for (let i = x - 1; i >= 0; i--) {
                             if (maskData[getIdx(i, y) + 3] === 0) { colorL = getIdx(i, y); distL = x - i; break; }
                         }
-                        // Right
                         for (let i = x + 1; i < imgW; i++) {
                             if (maskData[getIdx(i, y) + 3] === 0) { colorR = getIdx(i, y); distR = i - x; break; }
                         }
-                        // Up
                         for (let j = y - 1; j >= 0; j--) {
                             if (maskData[getIdx(x, j) + 3] === 0) { colorU = getIdx(x, j); distU = y - j; break; }
                         }
-                        // Down
                         for (let j = y + 1; j < imgH; j++) {
                             if (maskData[getIdx(x, j) + 3] === 0) { colorD = getIdx(x, j); distD = j - y; break; }
                         }
 
-                        // Calcula
+                        const wL = colorL !== null ? 1 / (distL * distL) : 0;
+                        const wR = colorR !== null ? 1 / (distR * distR) : 0;
+                        const wU = colorU !== null ? 1 / (distU * distU) : 0;
+                        const wD = colorD !== null ? 1 / (distD * distD) : 0;
+                        
+                        const totalWeight = wL + wR + wU + wD;
+
+                        if (totalWeight > 0) {
+                            for (let c = 0; c < 3; c++) {
+                                let val = 0;
+                                if (colorL !== null) val += originalPixels[colorL + c] * wL;
+                                if (colorR !== null) val += originalPixels[colorR + c] * wR;
+                                if (colorU !== null) val += originalPixels[colorU + c] * wU;
+                                if (colorD !== null) val += originalPixels[colorD + c] * wD;
+                                
+                                val = val / totalWeight;
+                                const noise = (Math.random() - 0.5) * 6;
+                                pixels[idx + c] = Math.min(255, Math.max(0, val + noise));
+                            }
+                            pixels[idx + 3] = 255;
+                        }
+                    }
+      
