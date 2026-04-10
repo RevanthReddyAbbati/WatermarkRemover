@@ -7,89 +7,173 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
         
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f8fafc;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
             overscroll-behavior-y: none;
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+                radial-gradient(at 50% 0%, hsla(225,39%,30%,0.2) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(339,49%,30%,0.2) 0, transparent 50%);
+            background-attachment: fixed;
         }
         
         .glass-panel {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
         }
 
-        /* The workspace disables touch actions like scrolling so the user can draw the box on mobile */
         #workspace {
             touch-action: none;
             user-select: none;
             -webkit-user-select: none;
+            position: relative;
+            display: inline-block;
+        }
+
+        /* Cursor changes based on tool */
+        .brush-cursor {
+            cursor: crosshair;
         }
 
         .custom-file-upload {
             cursor: pointer;
-            transition: all 0.2s ease-in-out;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(15, 23, 42, 0.6);
         }
         
         .custom-file-upload:hover {
-            border-color: #3b82f6;
-            background-color: #eff6ff;
+            border-color: #8b5cf6;
+            background: rgba(30, 41, 59, 0.8);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.15);
         }
 
-        /* Fixed Footer styling */
+        /* Gradient Button */
+        .btn-gradient {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            background-size: 200% auto;
+            transition: 0.5s;
+        }
+        .btn-gradient:hover {
+            background-position: right center;
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+        }
+
+        /* Custom Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #a855f7;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 2px;
+        }
+
         footer {
-            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        /* Loading Overlay */
+        #loader {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 50;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col text-slate-800">
+<body class="min-h-screen flex flex-col">
 
-    <header class="bg-white shadow-sm py-4 px-6 z-10 relative">
-        <div class="max-w-5xl mx-auto flex justify-between items-center">
-            <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                <i class="fa-solid fa-eraser text-blue-500"></i> Watermark & Logo Remover
+    <header class="py-5 px-6 z-10 relative border-b border-white/5 glass-panel">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 flex items-center gap-3">
+                <i class="fa-solid fa-eraser text-indigo-400"></i> Magic Eraser Pro
             </h1>
         </div>
     </header>
 
-    <main class="flex-grow flex flex-col items-center p-4 md:p-8 w-full max-w-5xl mx-auto mb-16">
+    <main class="flex-grow flex flex-col items-center p-4 md:p-6 w-full max-w-6xl mx-auto mb-16">
         
-        <div id="uploadSection" class="w-full max-w-2xl mt-10">
-            <label class="custom-file-upload flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-slate-300 rounded-xl bg-white">
+        <div id="uploadSection" class="w-full max-w-3xl mt-16">
+            <label class="custom-file-upload flex flex-col items-center justify-center w-full h-80 border-2 border-dashed border-slate-600 rounded-2xl">
                 <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                    <i class="fa-solid fa-cloud-arrow-up text-5xl text-slate-400 mb-4"></i>
-                    <p class="mb-2 text-sm text-slate-500"><span class="font-semibold text-blue-600">Click to upload</span> or drag and drop</p>
-                    <p class="text-xs text-slate-400">PNG, JPG, JPEG (High Quality Preserved)</p>
+                    <div class="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mb-4 border border-slate-700 shadow-lg">
+                        <i class="fa-solid fa-image text-3xl text-indigo-400"></i>
+                    </div>
+                    <p class="mb-2 text-lg text-slate-300"><span class="font-semibold text-purple-400">Click to upload</span> or drag and drop</p>
+                    <p class="text-sm text-slate-500 mt-2 bg-slate-800/50 py-1 px-3 rounded-full">High-Resolution Quality Preserved</p>
                 </div>
                 <input id="imageInput" type="file" class="hidden" accept="image/*" />
             </label>
         </div>
 
-        <div id="editorSection" class="w-full hidden flex flex-col items-center gap-6">
+        <div id="editorSection" class="w-full hidden flex flex-col gap-6 w-full">
             
-            <div class="glass-panel w-full rounded-xl p-4 flex flex-wrap justify-between items-center gap-4">
-                <div class="text-sm text-slate-600 font-medium">
-                    <i class="fa-solid fa-hand-pointer mr-1"></i> Draw a box over the watermark or logo to remove it.
+            <div class="glass-panel w-full rounded-2xl p-4 flex flex-col lg:flex-row justify-between items-center gap-4 shadow-xl">
+                
+                <div class="flex items-center gap-4 w-full lg:w-auto bg-slate-800/50 px-4 py-2 rounded-xl border border-slate-700/50">
+                    <i class="fa-solid fa-paintbrush text-slate-400"></i>
+                    <div class="flex flex-col w-32 md:w-48">
+                        <span class="text-xs text-slate-400 mb-1 font-medium">Brush Size: <span id="brushSizeLabel">25</span>px</span>
+                        <input type="range" id="brushSize" min="5" max="100" value="25">
+                    </div>
                 </div>
-                <div class="flex gap-3 w-full sm:w-auto">
-                    <button id="btnReset" class="flex-1 sm:flex-none px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium transition-colors text-sm">
-                        <i class="fa-solid fa-rotate-left mr-1"></i> Reset
+
+                <div class="flex flex-wrap justify-center gap-2 w-full lg:w-auto">
+                    <button id="btnClearSelection" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-medium transition-colors text-sm border border-slate-700 flex items-center gap-2" title="Clear Brush Selection">
+                        <i class="fa-solid fa-eraser"></i> Clear Brush
                     </button>
-                    <button id="btnRemove" class="flex-1 sm:flex-none px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                        <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Remove
+                    <button id="btnUndo" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-medium transition-colors text-sm border border-slate-700 flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed" disabled title="Undo Last Removal">
+                        <i class="fa-solid fa-rotate-left"></i> Undo Action
                     </button>
-                    <button id="btnDownload" class="flex-1 sm:flex-none px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors shadow-sm text-sm">
-                        <i class="fa-solid fa-download mr-1"></i> Download
+                    <button id="btnRemove" class="px-6 py-2.5 btn-gradient text-white rounded-xl font-semibold shadow-lg text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95 transition-transform" disabled>
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Remove Marked Area
+                    </button>
+                    <div class="w-px h-10 bg-slate-700 mx-1 hidden sm:block"></div>
+                    <button id="btnDownload" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium transition-colors shadow-lg text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-download"></i> Save High-Res
                     </button>
                 </div>
             </div>
 
-            <div class="relative bg-white p-2 rounded-xl shadow-sm border border-slate-200 overflow-hidden max-w-full flex justify-center">
-                <div id="workspace" class="relative inline-block cursor-crosshair">
-                    <img id="displayImage" class="max-w-full max-h-[60vh] object-contain block pointer-events-none rounded" alt="Workspace Image" />
-                    <div id="selectionBox" class="absolute hidden border-2 border-blue-500 bg-blue-500 bg-opacity-20 pointer-events-none"></div>
+            <div class="relative glass-panel p-3 rounded-2xl border border-slate-700 overflow-hidden flex justify-center items-center bg-slate-900/50 min-h-[50vh]">
+                
+                <div id="workspace" class="brush-cursor rounded-lg overflow-hidden shadow-2xl ring-1 ring-white/10">
+                    <img id="displayImage" class="max-w-full max-h-[65vh] object-contain block pointer-events-none" alt="Workspace" />
+                    <canvas id="drawingCanvas" class="absolute top-0 left-0 w-full h-full touch-none"></canvas>
+                    
+                    <div id="loader" class="flex">
+                        <i class="fa-solid fa-circle-notch fa-spin text-4xl text-purple-500 mb-3"></i>
+                        <span class="text-sm font-medium text-slate-300">Processing Pixels...</span>
+                    </div>
                 </div>
             </div>
             
@@ -97,9 +181,9 @@
         </div>
     </main>
 
-    <footer class="fixed bottom-0 w-full bg-slate-900 text-slate-300 py-3 px-4 text-center z-50">
-        <p class="text-sm font-medium tracking-wide">
-            Developed by <span class="text-white font-semibold">Revanth Reddy Abbati</span>
+    <footer class="fixed bottom-0 w-full py-3 px-4 text-center z-50">
+        <p class="text-sm font-medium tracking-wide text-slate-400">
+            Developed by <span class="text-white font-semibold hover:text-indigo-400 transition-colors cursor-pointer">Revanth Reddy Abbati</span>
         </p>
     </footer>
 
@@ -110,246 +194,263 @@
         const editorSection = document.getElementById('editorSection');
         const displayImage = document.getElementById('displayImage');
         const workspace = document.getElementById('workspace');
-        const selectionBox = document.getElementById('selectionBox');
-        const processingCanvas = document.getElementById('processingCanvas');
-        const ctx = processingCanvas.getContext('2d', { willReadFrequently: true });
         
-        const btnReset = document.getElementById('btnReset');
+        const drawingCanvas = document.getElementById('drawingCanvas');
+        const drawCtx = drawingCanvas.getContext('2d', { willReadFrequently: true });
+        
+        const processingCanvas = document.getElementById('processingCanvas');
+        const processCtx = processingCanvas.getContext('2d', { willReadFrequently: true });
+        
+        const btnClearSelection = document.getElementById('btnClearSelection');
+        const btnUndo = document.getElementById('btnUndo');
         const btnRemove = document.getElementById('btnRemove');
         const btnDownload = document.getElementById('btnDownload');
+        const brushSizeInput = document.getElementById('brushSize');
+        const brushSizeLabel = document.getElementById('brushSizeLabel');
+        const loader = document.getElementById('loader');
 
-        // State Variables
+        // App State
         let originalImageObj = new Image();
-        let currentImageObj = new Image();
         let isDrawing = false;
-        let startX, startY;
-        let currentRect = null; // {x, y, w, h} in display coordinates
+        let hasSelection = false;
+        let brushSize = parseInt(brushSizeInput.value);
+        let historyStack = []; // Array of ImageData to support Undo
 
-        // Load Image Handler
+        // Brush Settings
+        brushSizeInput.addEventListener('input', (e) => {
+            brushSize = parseInt(e.target.value);
+            brushSizeLabel.innerText = brushSize;
+        });
+
+        // Setup Window Resize to keep drawing canvas aligned
+        window.addEventListener('resize', resizeDrawingCanvas);
+
+        function resizeDrawingCanvas() {
+            if (!displayImage.src) return;
+            drawingCanvas.width = displayImage.clientWidth;
+            drawingCanvas.height = displayImage.clientHeight;
+            drawCtx.lineCap = 'round';
+            drawCtx.lineJoin = 'round';
+            drawCtx.strokeStyle = 'rgba(239, 68, 68, 0.6)'; // Semi-transparent red mask
+            clearSelection();
+        }
+
+        // Image Upload Logic
         imageInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
             reader.onload = (event) => {
-                const imgUrl = event.target.result;
-                
                 originalImageObj.onload = () => {
-                    // Set up canvas with ORIGINAL full resolution
+                    // Initialize High-Res Processing Canvas
                     processingCanvas.width = originalImageObj.naturalWidth;
                     processingCanvas.height = originalImageObj.naturalHeight;
-                    ctx.drawImage(originalImageObj, 0, 0);
+                    processCtx.drawImage(originalImageObj, 0, 0);
                     
-                    // Display image
-                    displayImage.src = imgUrl;
+                    // Display Image
+                    displayImage.src = event.target.result;
                     
-                    // Switch UI
+                    // Reset State
+                    historyStack = [];
+                    updateUndoButton();
+                    
+                    // Reveal Editor
                     uploadSection.classList.add('hidden');
                     editorSection.classList.remove('hidden');
-                    editorSection.classList.add('flex');
                     
-                    resetSelection();
+                    // Wait a tiny bit for UI layout to settle before sizing canvas
+                    setTimeout(resizeDrawingCanvas, 50);
                 };
-                originalImageObj.src = imgUrl;
+                originalImageObj.src = event.target.result;
             };
             reader.readAsDataURL(file);
         });
 
-        // Reset App State
-        btnReset.addEventListener('click', () => {
-            ctx.clearRect(0, 0, processingCanvas.width, processingCanvas.height);
-            ctx.drawImage(originalImageObj, 0, 0);
-            updateDisplayFromCanvas();
-            resetSelection();
-        });
-
-        // Event Normalization for Mouse/Touch
-        function getEventPos(e) {
-            const rect = workspace.getBoundingClientRect();
-            let clientX, clientY;
-
-            if (e.touches && e.touches.length > 0) {
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
-            } else {
-                clientX = e.clientX;
-                clientY = e.clientY;
-            }
-
+        // ----------------------------------------------------
+        // FREEHAND DRAWING LOGIC (Pointer Events for Touch + Mouse)
+        // ----------------------------------------------------
+        
+        function getPointerPos(e) {
+            const rect = drawingCanvas.getBoundingClientRect();
             return {
-                x: clientX - rect.left,
-                y: clientY - rect.top
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
             };
         }
 
-        // Drawing Logic
-        function startDrawing(e) {
-            e.preventDefault();
+        drawingCanvas.addEventListener('pointerdown', (e) => {
             isDrawing = true;
-            const pos = getEventPos(e);
-            startX = pos.x;
-            startY = pos.y;
+            hasSelection = true;
+            btnRemove.disabled = false;
+            const pos = getPointerPos(e);
             
-            selectionBox.style.left = startX + 'px';
-            selectionBox.style.top = startY + 'px';
-            selectionBox.style.width = '0px';
-            selectionBox.style.height = '0px';
-            selectionBox.classList.remove('hidden');
-            currentRect = null;
-            btnRemove.disabled = true;
-        }
-
-        function draw(e) {
-            if (!isDrawing) return;
-            e.preventDefault();
-            const pos = getEventPos(e);
+            drawCtx.lineWidth = brushSize;
+            drawCtx.beginPath();
+            drawCtx.moveTo(pos.x, pos.y);
+            // Draw a single dot if user just clicks
+            drawCtx.lineTo(pos.x, pos.y);
+            drawCtx.stroke();
             
-            const currentX = pos.x;
-            const currentY = pos.y;
+            // Prevent scrolling on mobile while drawing
+            e.preventDefault(); 
+        });
 
-            const width = Math.abs(currentX - startX);
-            const height = Math.abs(currentY - startY);
-            const left = Math.min(startX, currentX);
-            const top = Math.min(startY, currentY);
-
-            // Keep within bounds
-            const maxW = displayImage.clientWidth - left;
-            const maxH = displayImage.clientHeight - top;
-
-            selectionBox.style.width = Math.min(width, maxW) + 'px';
-            selectionBox.style.height = Math.min(height, maxH) + 'px';
-            selectionBox.style.left = Math.max(0, left) + 'px';
-            selectionBox.style.top = Math.max(0, top) + 'px';
-        }
-
-        function stopDrawing(e) {
+        drawingCanvas.addEventListener('pointermove', (e) => {
             if (!isDrawing) return;
+            const pos = getPointerPos(e);
+            drawCtx.lineTo(pos.x, pos.y);
+            drawCtx.stroke();
             e.preventDefault();
-            isDrawing = false;
+        });
 
-            const w = parseInt(selectionBox.style.width || '0');
-            const h = parseInt(selectionBox.style.height || '0');
-
-            if (w > 5 && h > 5) {
-                currentRect = {
-                    x: parseInt(selectionBox.style.left),
-                    y: parseInt(selectionBox.style.top),
-                    w: w,
-                    h: h
-                };
-                btnRemove.disabled = false;
-            } else {
-                resetSelection();
+        const stopDrawing = (e) => {
+            if (isDrawing) {
+                isDrawing = false;
+                drawCtx.closePath();
             }
-        }
+        };
 
-        workspace.addEventListener('mousedown', startDrawing);
-        workspace.addEventListener('mousemove', draw);
-        window.addEventListener('mouseup', stopDrawing);
+        drawingCanvas.addEventListener('pointerup', stopDrawing);
+        drawingCanvas.addEventListener('pointerout', stopDrawing);
 
-        workspace.addEventListener('touchstart', startDrawing, {passive: false});
-        workspace.addEventListener('touchmove', draw, {passive: false});
-        window.addEventListener('touchend', stopDrawing);
+        // ----------------------------------------------------
+        // BUTTON ACTIONS
+        // ----------------------------------------------------
 
-        function resetSelection() {
-            selectionBox.classList.add('hidden');
-            currentRect = null;
+        function clearSelection() {
+            drawCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+            hasSelection = false;
             btnRemove.disabled = true;
         }
 
-        // Advanced Logic: Edge Interpolation Algorithm
+        btnClearSelection.addEventListener('click', clearSelection);
+
+        function saveStateToHistory() {
+            // Save current high-res state
+            const currentData = processCtx.getImageData(0, 0, processingCanvas.width, processingCanvas.height);
+            historyStack.push(currentData);
+            // Limit history to 10 to save memory
+            if (historyStack.length > 10) historyStack.shift();
+            updateUndoButton();
+        }
+
+        function updateUndoButton() {
+            btnUndo.disabled = historyStack.length === 0;
+        }
+
+        btnUndo.addEventListener('click', () => {
+            if (historyStack.length === 0) return;
+            const previousState = historyStack.pop();
+            processCtx.putImageData(previousState, 0, 0);
+            updateDisplayImage();
+            updateUndoButton();
+            clearSelection();
+        });
+
+        // ----------------------------------------------------
+        // ADVANCED FREEHAND INPAINTING ALGORITHM
+        // ----------------------------------------------------
+        
         btnRemove.addEventListener('click', () => {
-            if (!currentRect) return;
+            if (!hasSelection) return;
+            
+            // Show loader
+            loader.style.display = 'flex';
+            
+            // Small timeout to allow UI to render loader before heavy JS freezes main thread
+            setTimeout(() => {
+                executeRemoval();
+                loader.style.display = 'none';
+            }, 50);
+        });
 
-            // 1. Calculate scale factor between display and actual high-res canvas
-            const scaleX = processingCanvas.width / displayImage.clientWidth;
-            const scaleY = processingCanvas.height / displayImage.clientHeight;
+        function executeRemoval() {
+            saveStateToHistory();
 
-            // 2. Map display coordinates to real high-res coordinates
-            const realX = Math.floor(currentRect.x * scaleX);
-            const realY = Math.floor(currentRect.y * scaleY);
-            const realW = Math.floor(currentRect.w * scaleX);
-            const realH = Math.floor(currentRect.h * scaleY);
+            const imgW = processingCanvas.width;
+            const imgH = processingCanvas.height;
+            const dispW = drawingCanvas.width;
+            const dispH = drawingCanvas.height;
 
-            // Extract a box slightly larger to get the edge pixels
-            const pad = 2; 
-            const sx = Math.max(0, realX - pad);
-            const sy = Math.max(0, realY - pad);
-            const sw = Math.min(processingCanvas.width - sx, realW + pad * 2);
-            const sh = Math.min(processingCanvas.height - sy, realH + pad * 2);
+            const scaleX = imgW / dispW;
+            const scaleY = imgH / dispH;
 
-            const imageData = ctx.getImageData(sx, sy, sw, sh);
-            const data = imageData.data;
+            // 1. Create an offscreen canvas to scale the mask up to high-res
+            const maskCanvas = document.createElement('canvas');
+            maskCanvas.width = imgW;
+            maskCanvas.height = imgH;
+            const mCtx = maskCanvas.getContext('2d', { willReadFrequently: true });
+            mCtx.drawImage(drawingCanvas, 0, 0, imgW, imgH);
+            
+            const maskImageData = mCtx.getImageData(0, 0, imgW, imgH);
+            const maskData = maskImageData.data;
 
-            // Helper to get pixel index
-            const getIdx = (x, y) => (y * sw + x) * 4;
+            // 2. Get high-res image data
+            const imgData = processCtx.getImageData(0, 0, imgW, imgH);
+            const pixels = imgData.data;
 
-            // Interpolate colors from the edges towards the center
-            for (let y = pad; y < sh - pad; y++) {
-                for (let x = pad; x < sw - pad; x++) {
-                    
-                    // Distances to borders
-                    const distLeft = x;
-                    const distRight = sw - 1 - x;
-                    const distTop = y;
-                    const distBottom = sh - 1 - y;
-
-                    // Inverse distance weights
-                    const wLeft = 1 / Math.max(1, distLeft);
-                    const wRight = 1 / Math.max(1, distRight);
-                    const wTop = 1 / Math.max(1, distTop);
-                    const wBottom = 1 / Math.max(1, distBottom);
-                    const totalWeight = wLeft + wRight + wTop + wBottom;
-
-                    // Edge indices
-                    const idxLeft = getIdx(0, y);
-                    const idxRight = getIdx(sw - 1, y);
-                    const idxTop = getIdx(x, 0);
-                    const idxBottom = getIdx(x, sh - 1);
-                    const currentIdx = getIdx(x, y);
-
-                    // Blend R, G, B channels
-                    for (let c = 0; c < 3; c++) {
-                        const val = (
-                            data[idxLeft + c] * wLeft +
-                            data[idxRight + c] * wRight +
-                            data[idxTop + c] * wTop +
-                            data[idxBottom + c] * wBottom
-                        ) / totalWeight;
-                        
-                        // Add slight noise to prevent banding and match photo grain
-                        const noise = (Math.random() - 0.5) * 8; 
-                        
-                        data[currentIdx + c] = Math.min(255, Math.max(0, val + noise));
+            // 3. Find bounding box of the mask to optimize processing loop
+            let minX = imgW, minY = imgH, maxX = 0, maxY = 0;
+            for (let y = 0; y < imgH; y++) {
+                for (let x = 0; x < imgW; x++) {
+                    const alphaIdx = (y * imgW + x) * 4 + 3;
+                    if (maskData[alphaIdx] > 0) { // If pixel is masked
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
                     }
-                    // Keep Alpha fully opaque
-                    data[currentIdx + 3] = 255;
                 }
             }
 
-            // Put patched data back on the high-res canvas
-            ctx.putImageData(imageData, sx, sy);
+            // If no valid mask found, abort
+            if (minX > maxX) {
+                clearSelection();
+                return;
+            }
+
+            // Add slight padding to bounding box
+            const pad = 2;
+            minX = Math.max(0, minX - pad);
+            minY = Math.max(0, minY - pad);
+            maxX = Math.min(imgW - 1, maxX + pad);
+            maxY = Math.min(imgH - 1, maxY + pad);
+
+            // 4. Freehand Inpainting Algorithm (Raycast Interpolation)
+            // For every masked pixel, shoot rays in 4 directions to find nearest unmasked pixels.
+            // Blend their colors based on distance.
             
-            // Update the visual image while keeping the high-res data stored
-            updateDisplayFromCanvas();
-            resetSelection();
-        });
+            // We use a copy of the original pixels to read from, so we don't bleed newly calculated pixels into each other prematurely.
+            const originalPixels = new Uint8ClampedArray(pixels);
+            const getIdx = (x, y) => (y * imgW + x) * 4;
 
-        function updateDisplayFromCanvas() {
-            // Converts high-res canvas back to image src for display
-            displayImage.src = processingCanvas.toDataURL('image/png');
-        }
+            for (let y = minY; y <= maxY; y++) {
+                for (let x = minX; x <= maxX; x++) {
+                    const idx = getIdx(x, y);
+                    
+                    // If part of the mask (alpha > 0 in mask data)
+                    if (maskData[idx + 3] > 0) {
+                        
+                        // Find nearest unmasked pixels in 4 directions
+                        let distL = 1, distR = 1, distU = 1, distD = 1;
+                        let colorL = null, colorR = null, colorU = null, colorD = null;
 
-        // Download High-Quality Output
-        btnDownload.addEventListener('click', () => {
-            const link = document.createElement('a');
-            link.download = 'cleaned_image_pro.png'; // Updated filename
-            link.href = processingCanvas.toDataURL('image/png', 1.0); // 1.0 ensures max quality
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
+                        // Left
+                        for (let i = x - 1; i >= 0; i--) {
+                            if (maskData[getIdx(i, y) + 3] === 0) { colorL = getIdx(i, y); distL = x - i; break; }
+                        }
+                        // Right
+                        for (let i = x + 1; i < imgW; i++) {
+                            if (maskData[getIdx(i, y) + 3] === 0) { colorR = getIdx(i, y); distR = i - x; break; }
+                        }
+                        // Up
+                        for (let j = y - 1; j >= 0; j--) {
+                            if (maskData[getIdx(x, j) + 3] === 0) { colorU = getIdx(x, j); distU = y - j; break; }
+                        }
+                        // Down
+                        for (let j = y + 1; j < imgH; j++) {
+                            if (maskData[getIdx(x, j) + 3] === 0) { colorD = getIdx(x, j); distD = j - y; break; }
+                        }
 
-    </script>
-</body>
-</html>
+                        // Calcula
